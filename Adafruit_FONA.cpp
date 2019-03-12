@@ -1248,15 +1248,11 @@ boolean Adafruit_FONA::getGSMLoc(float *lat, float *lon) {
 /********* TCP FUNCTIONS  ************************************/
 boolean Adafruit_FONA::TCPconnect(char *server, uint16_t port) {
   flushInput();
-
-  // close all old connections
-  if (! sendCheckReply(F("AT+CIPSHUT"), F("SHUT OK"), 20000) ) return false;
-
-  // single connection at a time
-  if (! sendCheckReply(F("AT+CIPMUX=0"), ok_reply) ) return false;
+  if (! sendCheckReply(F("AT+CIPSHUT"), F("SHUT OK"), 20000) ) return false;	  // close all old connections
+  if (! sendCheckReply(F("AT+CIPMUX=1"), ok_reply) ) return false;	  // multiple connections
 
   // manually read data
-  if (! sendCheckReply(F("AT+CIPRXGET=1"), ok_reply) ) return false;
+  //if (! sendCheckReply(F("AT+CIPRXGET=1"), ok_reply) ) return false;
 
   DEBUG_PRINT(F("AT+CIPSTART=\"TCP\",\""));
   DEBUG_PRINT(server);
@@ -1289,21 +1285,25 @@ boolean Adafruit_FONA::TCPconnected(void) {
 }
 boolean Adafruit_FONA::TCPsend(char *packet, uint8_t len) {
 
-  DEBUG_PRINT(F("AT+CIPSEND=1,"));
-  DEBUG_PRINT(len); DEBUG_PRINT('\n');
+	String cipSendCmd = "AT+CIPSEND=1,";
+	cipSendCmd += String(len);
+	char cipSendCmd_c[cipSendCmd.length()];
+	cipSendCmd.toCharArray(cipSendCmd_c, cipSendCmd.length()+1);
+  	DEBUG_PRINTLN(cipSendCmd_c);
+  	//DEBUG_PRINT(len); DEBUG_PRINT('\n');
 	
-  getReply(F("AT+CIPSEND=1,28"));
-  //readline(5000);
+	getReply(cipSendCmd_c);
+	//readline(5000);
 
-  DEBUG_PRINT (F("\t<--- ")); DEBUG_PRINTLN(replybuffer);
+	DEBUG_PRINT (F("\t<--- ")); DEBUG_PRINTLN(replybuffer);
 
-  if (replybuffer[0] != '>') return false;
+	if (replybuffer[0] != '>') return false;
   
 #ifdef ADAFRUIT_FONA_DEBUG
-  for (uint16_t i=0; i<len; i++) {
-  	//DEBUG_PRINT(F(" 0x"));
-  	DEBUG_PRINT(packet[i]);
-  }
+	for (uint16_t i=0; i<len; i++) {
+		//DEBUG_PRINT(F(" 0x"));
+		DEBUG_PRINT(packet[i]);
+	}
 #endif
 
 	DEBUG_PRINTLN();
@@ -1348,30 +1348,23 @@ uint16_t Adafruit_FONA::TCPread(uint8_t *buff, uint8_t len) {
 
   return avail;
 }
-boolean Adafruit_FONA::Hologram_HelloWorld(void) {
-	if (! sendCheckReply(F("AT+CIPSHUT"), F("SHUT OK"), 20000) ) return false;
-	//if (! sendCheckReply(F("AT+CGATT=1"), ok_reply, 10000)) return false;
-	if (! sendCheckReply(F("AT+CIPMUX=1"), ok_reply) ) return false;
-	if (! sendCheckReply(F("AT+CSTT=\"hologram\""), ok_reply) ) return false;
-	if (! sendCheckReply(F("AT+CIICR"), ok_reply, 20000) ) return false;
-	sendCheckReply(F("AT+CIFSR"), ok_reply);
-	
-	//if (!sendCheckReply(F("AT+CIPSTART=1,TCP,23.253.146.203,9999"), F("1, CONNECT OK"), 10000)) return false;
-	//if (!sendCheckReply(F("AT+CIPSEND=1,39"), F(">"), 10000)) return false;
-	
-// 	getReply(F("AT+CIPSTART=1,\"TCP\",\"23.253.146.203\",\"9999\"\n\r"));
-// 	delay(1000);
-// 	getReply(F("AT+CIPSEND=1,28\n\r"));//, 20000));
-// 	delay(100);
-// 	getReply(F("{\"k\":\"&Ld5u4UD\",\"d\":\"Hello World\"}\n\r"));
-// 	delay(5000);
-	
-	sendCheckReply(F("AT+CIPSTART=1,\"TCP\",\"23.253.146.203\",\"9999\""), ok_reply, 20000);
+boolean Adafruit_FONA::Hologram_send(char *data, char *key) {
+	if (! sendCheckReply(F("AT+CIPSHUT"), F("SHUT OK"), 20000) ) return false;	// close the channel
+	if (! sendCheckReply(F("AT+CIPMUX=1"), ok_reply) ) return false;			// set to multi connection mode
+	if (! sendCheckReply(F("AT+CSTT=\"hologram\""), ok_reply) ) return false;	// set apn
+	if (! sendCheckReply(F("AT+CIICR"), ok_reply, 20000) ) return false;		// bring up network connection
+	sendCheckReply(F("AT+CIFSR"), ok_reply);									// check IP address
+	sendCheckReply(F("AT+CIPSTART=1,\"TCP\",\"23.253.146.203\",\"9999\""), ok_reply, 20000);	// start TCP connection
 	readline();
-	DEBUG_PRINT (F("\t<--- ")); DEBUG_PRINTLN(replybuffer);
-	char * message = "{\"k\":\"&Ld5u4UD\",\"d\":\"Cats!\"}";
-	return TCPsend(message, 28);
-	//return true;
+	DEBUG_PRINT (F("\t<--- ")); DEBUG_PRINTLN(replybuffer);		// debugging output
+	String message_S = "{\"k\":\"" + String(key) + "\",\"d\":\"" + String(data) + "\"}";
+	uint8_t len = message_S.length();
+	//char * message = "{\"k\":\"&Ld5u4UD\",\"d\":\"Cats!\"}";	// compose the message
+	char message_c[len+1];
+	message_S.toCharArray(message_c, len+1);
+	Serial.println(len);
+	Serial.println(message_c);
+	return TCPsend(message_c, len+1);
 }
 
 /********* HTTP LOW LEVEL FUNCTIONS  ************************************/
@@ -1488,7 +1481,6 @@ boolean Adafruit_FONA::HTTP_GET_start(char *url,
 
   return true;
 }
-
 /*
 boolean Adafruit_FONA_3G::HTTP_GET_start(char *ipaddr, char *path, uint16_t port
 				      uint16_t *status, uint16_t *datalen){
@@ -1524,7 +1516,6 @@ boolean Adafruit_FONA_3G::HTTP_GET_start(char *ipaddr, char *path, uint16_t port
   return true;
 }
 */
-
 void Adafruit_FONA::HTTP_GET_end(void) {
   HTTP_term();
 }
@@ -1712,6 +1703,7 @@ uint8_t Adafruit_FONA::getReply(FONAFlashStringPtr send, uint16_t timeout) {
 
   return l;
 }
+
 // Send prefix, suffix, and newline. Return response (and also set replybuffer with response).
 uint8_t Adafruit_FONA::getReply(FONAFlashStringPtr prefix, char *suffix, uint16_t timeout) {
   flushInput();
@@ -1729,6 +1721,7 @@ uint8_t Adafruit_FONA::getReply(FONAFlashStringPtr prefix, char *suffix, uint16_
 
   return l;
 }
+
 // Send prefix, suffix, and newline. Return response (and also set replybuffer with response).
 uint8_t Adafruit_FONA::getReply(FONAFlashStringPtr prefix, int32_t suffix, uint16_t timeout) {
   flushInput();
@@ -1746,6 +1739,7 @@ uint8_t Adafruit_FONA::getReply(FONAFlashStringPtr prefix, int32_t suffix, uint1
 
   return l;
 }
+
 // Send prefix, suffix, suffix2, and newline. Return response (and also set replybuffer with response).
 uint8_t Adafruit_FONA::getReply(FONAFlashStringPtr prefix, int32_t suffix1, int32_t suffix2, uint16_t timeout) {
   flushInput();
@@ -1766,6 +1760,7 @@ uint8_t Adafruit_FONA::getReply(FONAFlashStringPtr prefix, int32_t suffix1, int3
 
   return l;
 }
+
 // Send prefix, ", suffix, ", and newline. Return response (and also set replybuffer with response).
 uint8_t Adafruit_FONA::getReplyQuoted(FONAFlashStringPtr prefix, FONAFlashStringPtr suffix, uint16_t timeout) {
   flushInput();
@@ -1812,16 +1807,19 @@ boolean Adafruit_FONA::sendCheckReply(char* send, FONAFlashStringPtr reply, uint
 	  return false;
   return (prog_char_strcmp(replybuffer, (prog_char*)reply) == 0);
 }
+
 // Send prefix, suffix, and newline.  Verify FONA response matches reply parameter.
 boolean Adafruit_FONA::sendCheckReply(FONAFlashStringPtr prefix, char *suffix, FONAFlashStringPtr reply, uint16_t timeout) {
   getReply(prefix, suffix, timeout);
   return (prog_char_strcmp(replybuffer, (prog_char*)reply) == 0);
 }
+
 // Send prefix, suffix, and newline.  Verify FONA response matches reply parameter.
 boolean Adafruit_FONA::sendCheckReply(FONAFlashStringPtr prefix, int32_t suffix, FONAFlashStringPtr reply, uint16_t timeout) {
   getReply(prefix, suffix, timeout);
   return (prog_char_strcmp(replybuffer, (prog_char*)reply) == 0);
 }
+
 // Send prefix, suffix, suffix2, and newline.  Verify FONA response matches reply parameter.
 boolean Adafruit_FONA::sendCheckReply(FONAFlashStringPtr prefix, int32_t suffix1, int32_t suffix2, FONAFlashStringPtr reply, uint16_t timeout) {
   getReply(prefix, suffix1, suffix2, timeout);
