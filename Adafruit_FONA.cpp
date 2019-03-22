@@ -1348,7 +1348,7 @@ uint16_t Adafruit_FONA::TCPread(uint8_t *buff, uint8_t len) {
 
   return avail;
 }
-boolean Adafruit_FONA::Hologram_send(char *data, char *key) {
+boolean Adafruit_FONA::Hologram_send(char *data, const char *key) {
 	if (! sendCheckReply(F("AT+CIPSHUT"), F("SHUT OK"), 20000) ) return false;	// close the channel
 	if (! sendCheckReply(F("AT+CIPMUX=1"), ok_reply) ) return false;			// set to multi connection mode
 	if (! sendCheckReply(F("AT+CSTT=\"hologram\""), ok_reply) ) return false;	// set apn
@@ -1357,13 +1357,13 @@ boolean Adafruit_FONA::Hologram_send(char *data, char *key) {
 	sendCheckReply(F("AT+CIPSTART=1,\"TCP\",\"23.253.146.203\",\"9999\""), ok_reply, 20000);	// start TCP connection
 	readline();
 	DEBUG_PRINT (F("\t<--- ")); DEBUG_PRINTLN(replybuffer);		// debugging output
-	String message_S = "{\"k\":\"" + String(key) + "\",\"d\":\"" + String(data) + "\"}";
+	
+	String data_S = (String) data;
+	data_S.replace("\"","\\\"");
+	String message_S = "{\"k\": \"" + String(key) + "\",\"d\": \"" + data_S + "\"}\r";
 	uint8_t len = message_S.length();
-	//char * message = "{\"k\":\"&Ld5u4UD\",\"d\":\"Cats!\"}";	// compose the message
 	char message_c[len+1];
 	message_S.toCharArray(message_c, len+1);
-	Serial.println(len);
-	Serial.println(message_c);
 	return TCPsend(message_c, len+1);
 }
 
