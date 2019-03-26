@@ -659,7 +659,7 @@ boolean Adafruit_FONA::enableGPS(boolean onoff) {
       return false;
   }
 
-  if (onoff && !state) {
+  if (onoff && !state) { 
     if (_type == FONA808_V2) {
       if (! sendCheckReply(F("AT+CGNSPWR=1"), ok_reply))  // try GNS command
 	return false;
@@ -1122,8 +1122,8 @@ boolean Adafruit_FONA::enableGPRS(boolean onoff) {
       return false;
 
     // close GPRS context
-    if (! sendCheckReply(F("AT+SAPBR=0,1"), ok_reply, 10000))
-      return false;
+   /* if (! sendCheckReply(F("AT+SAPBR=0,1"), ok_reply, 10000))
+      return false;*/
 
     if (! sendCheckReply(F("AT+CGATT=0"), ok_reply, 10000))
       return false;
@@ -1292,7 +1292,7 @@ boolean Adafruit_FONA::TCPsend(char *packet, uint8_t len) {
   	DEBUG_PRINTLN(cipSendCmd_c);
   	//DEBUG_PRINT(len); DEBUG_PRINT('\n');
 	
-	getReply(cipSendCmd_c);
+	getReply(cipSendCmd_c, (uint16_t) 5000);
 	//readline(5000);
 
 	DEBUG_PRINT (F("\t<--- ")); DEBUG_PRINTLN(replybuffer);
@@ -1361,6 +1361,28 @@ boolean Adafruit_FONA::Hologram_send(char *data, const char *key) {
 	String data_S = (String) data;
 	data_S.replace("\"","\\\"");
 	String message_S = "{\"k\": \"" + String(key) + "\",\"d\": \"" + data_S + "\"}\r";
+	uint8_t len = message_S.length();
+	char message_c[len+1];
+	message_S.toCharArray(message_c, len+1);
+	return TCPsend(message_c, len+1);
+}
+boolean Adafruit_FONA::Hologram_send(char *data, const char *key, char *topics) {
+	enableGPS(false);
+	if (! sendCheckReply(F("AT+CIPSHUT"), F("SHUT OK"), 20000) ) return false;	// close the channel
+	/*if (! sendParseReply(F("AT+CGATT?"), F("+CGATT: "), &state) )
+		if (! sendCheckReply(F("AT+CGATT=1"), ok_reply, 10000)) 
+			return false;*/
+	if (! sendCheckReply(F("AT+CIPMUX=1"), ok_reply) ) return false;			// set to multi connection mode
+	if (! sendCheckReply(F("AT+CSTT=\"hologram\""), ok_reply) ) return false;	// set apn
+	if (! sendCheckReply(F("AT+CIICR"), ok_reply, 20000) ) return false;		// bring up network connection
+	sendCheckReply(F("AT+CIFSR"), ok_reply);									// check IP address
+	sendCheckReply(F("AT+CIPSTART=1,\"TCP\",\"23.253.146.203\",\"9999\""), ok_reply, 20000);	// start TCP connection
+	readline();
+	DEBUG_PRINT(F("\t<--- ")); DEBUG_PRINTLN(replybuffer);		// debugging output
+	
+	String data_S = (String) data;
+	data_S.replace("\"","\\\"");
+	String message_S = "{\"k\":\"" + String(key) + "\",\"d\":\"" + data_S + "\",\"t\":\"" + String(topics) +"\"}\r";
 	uint8_t len = message_S.length();
 	char message_c[len+1];
 	message_S.toCharArray(message_c, len+1);
