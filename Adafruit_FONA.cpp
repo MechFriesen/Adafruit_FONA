@@ -1309,7 +1309,7 @@ boolean Adafruit_FONA::TCPsend(char *packet, uint8_t len) {
 	DEBUG_PRINTLN();
 	getReply(packet);
 	//mySerial->print(packet);
-	readline(5000); // wait up to 3 seconds to send the data
+	readline(10000); // wait up to 3 seconds to send the data
 
 	DEBUG_PRINT (F("\t<--- ")); DEBUG_PRINTLN(replybuffer);
 
@@ -1376,8 +1376,8 @@ boolean Adafruit_FONA::Hologram_send(char *data, const char *key, char *topics) 
 	if (! sendCheckReply(F("AT+CSTT=\"hologram\""), ok_reply) ) return false;	// set apn
 	if (! sendCheckReply(F("AT+CIICR"), ok_reply, 20000) ) return false;		// bring up network connection
 	sendCheckReply(F("AT+CIFSR"), ok_reply);									// check IP address
-	sendCheckReply(F("AT+CIPSTART=1,\"TCP\",\"23.253.146.203\",\"9999\""), ok_reply, 20000);	// start TCP connection
-	readline();
+	sendCheckReply(F("AT+CIPSTART=1,\"TCP\",\"cloudsocket.hologram.io\",\"9999\""), ok_reply, 20000);	// start TCP connection
+	readline(20000);
 	DEBUG_PRINT(F("\t<--- ")); DEBUG_PRINTLN(replybuffer);		// debugging output
 	
 	String data_S = (String) data;
